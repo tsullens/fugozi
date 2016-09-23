@@ -49,12 +49,7 @@ func dbGetHandler(w http.ResponseWriter, r *http.Request) {
       if err == nil {
         // $doc key exits, serve the content
         w.Header().Set("Content-Type", "application")
-        js, err := json.MarshalIndent(doc, "", "  ")
-        if err != nil {
-          http.Error(w, err.Error(), http.StatusInternalServerError)
-          return
-        }
-        w.Write(js)
+        w.Write(doc)
       } else {
         // $doc key was not found, serve back a 404
         http.NotFound(w, r)
@@ -126,6 +121,6 @@ func dbPostHandler(w http.ResponseWriter, r *http.Request) {
     if (self.Debug) {
       log.Printf("%s\n", buf)
     }
-    bucket.Update(m[3], string(buf))
+    bucket.Update(m[3], buf)
   }
 }

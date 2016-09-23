@@ -16,16 +16,16 @@ func rlog(message string, r *http.Request) {
 
 func initialize() {
   test := database.NewBucket("_default")
-  test.Update("default", `
+  test.Update("default", []byte(`
     {
     "Name": "default doc"
     }
-    `)
-  test.Update("test1", `
+    `))
+  test.Update("test1", []byte(`
     {
     "Name": "test1"
     }
-    `)
+    `))
   buckets.Lock()
   buckets.m[test.Name] = test
   buckets.Unlock()

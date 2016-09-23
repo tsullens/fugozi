@@ -84,13 +84,6 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 func statusHandler(w http.ResponseWriter, r *http.Request) {
   rlog("statusHandler", r)
   w.Header().Set("Content-Type", "application/json")
-/*  encoder := json.NewEncoder(w)
-  encoder.SetIndent("", "  ")
-  err := encoder.Encode(self)
-  if err != nil {
-    http.Error(w, err.Error(), http.StatusInternalServerError)
-    return
-  }*/
   js, err := json.MarshalIndent(&self, "", "  ")
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
