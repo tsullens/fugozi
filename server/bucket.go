@@ -2,12 +2,11 @@ package server
 
 import (
   "fugozi/database"
-//    "sync"
   "net/http"
   "io"
   "encoding/json"
   "regexp"
-  "log"
+  "fmt"
 )
 
 // Accpeted Paths:
@@ -26,17 +25,23 @@ func dbHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func dbGetHandler(w http.ResponseWriter, r *http.Request) {
-  rlog("dbGetHandler", r)
+
+  lgmsg := fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
+  self.Logger.WriteLog(lgmsg)
+
   m := validPath.FindStringSubmatch(r.URL.Path)
   if m == nil {
     http.NotFound(w, r)
     return
   }
+
   buckets.RLock()
   bucket, exists := buckets.m[m[2]]
   buckets.RUnlock()
+
   if (self.Debug) {
-    log.Printf("%v %v %v", m, len(m), exists)
+    lgmsg := fmt.Sprintf("%v %v %v", m, len(m), exists)
+    self.Logger.WriteLog(lgmsg)
   }
 
   // if the bucket key exists, let's serve the content
@@ -75,21 +80,28 @@ func dbGetHandler(w http.ResponseWriter, r *http.Request) {
 // if /$bucket exists, insert / update the doc
 
 func dbPostHandler(w http.ResponseWriter, r *http.Request) {
+
   var bucket *database.Bucket
   var exists bool
 
-  rlog("dbPostHandler", r)
+  lgmsg := fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
+  self.Logger.WriteLog(lgmsg)
+
   m := validPath.FindStringSubmatch(r.URL.Path)
   if m == nil {
     http.NotFound(w, r)
     return
   }
+
   buckets.RLock()
   bucket, exists = buckets.m[m[2]]
   buckets.RUnlock()
+
   if (self.Debug) {
-    log.Printf("%v %v %v", m, len(m), exists)
+    lgmsg := fmt.Sprintf("%v %v %v", m, len(m), exists)
+    self.Logger.WriteLog(lgmsg)
   }
+
   // bucket doesn't exist, let's create one and add the doc if /$doc is present
   if !exists {
     buckets.Lock()
@@ -106,7 +118,8 @@ func dbPostHandler(w http.ResponseWriter, r *http.Request) {
   // if we have a doc to insert / update (e.g. r.Path = /$bucket/$doc)
   if m[3] != "" {
     if (self.Debug) {
-      log.Printf("%v", r.ContentLength)
+      lgmsg := fmt.Sprintf("%v", r.ContentLength)
+      self.Logger.WriteLog(lgmsg)
     }
     if r.ContentLength < 1 {
       http.Error(w, "Request content length 0 or undeterminable", http.StatusBadRequest)
@@ -119,7 +132,8 @@ func dbPostHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
     if (self.Debug) {
-      log.Printf("%s\n", buf)
+      lgmsg := fmt.Sprintf("%s\n", buf)
+      self.Logger.WriteLog(lgmsg)
     }
     bucket.Update(m[3], buf)
   }

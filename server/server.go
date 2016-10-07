@@ -4,11 +4,11 @@ import (
   "fugozi/database"
   "net/http"
   "sync"
-  "log"
   "encoding/json"
   "time"
   "fmt"
   "strings"
+  "os"
 )
 
 var (
@@ -71,13 +71,16 @@ func (srv *httpServer) RunServer() {
 //  http.HandleFunc("/status/buckets/", bucketsHandler)
   http.HandleFunc("/bucket/", dbHandler)
   http.HandleFunc("/", rootHandler)
-//  log.Printf("Listening on %s", srv.Port)
+
   lgmsg := fmt.Sprintf("Listening on %s", srv.Port)
   self.Logger.WriteLog(lgmsg)
 
   // Start the server
   listen := []string{srv.IpAddr, srv.Port}
-  log.Fatal(http.ListenAndServe(strings.Join(listen, ""), nil))
+
+  err := http.ListenAndServe(strings.Join(listen, ""), nil)
+  self.Logger.WriteLog(err.Error())
+  os.Exit(1)
 }
 
 // Route declarations
