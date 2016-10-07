@@ -1,4 +1,4 @@
-package httpserver
+package server
 
 import (
   "fugozi/database"
@@ -7,7 +7,7 @@ import (
   "log"
   "encoding/json"
   "time"
-//  "fmt"
+  "fmt"
   "strings"
 )
 
@@ -19,12 +19,13 @@ var (
   }{m: make(map[string]*database.Bucket)}
 )
 const (
-  timeLayout = "2006-01-02 15:04:05.00 MST"
+  timeLayout = "2006-01-02 15:04:05.000 MST"
 )
 
 type httpServer struct {
   IpAddr string
   Port string
+  Logger *Logger `json:"-"`
   Status string
   StartTime string
   Debug bool
@@ -32,13 +33,14 @@ type httpServer struct {
 
 func NewHttpServer(args ...string) (*httpServer) {
   var ip, p string
+  lggr := NewLogger("db.log")
   switch len(args){
   case 0:
     ip = ""
-    p = ":3001"
+    p = ":3341"
   case 1:
     ip = args[0]
-    p = ":3001"
+    p = ":3341"
   case 2:
     ip = args[0]
     p = args[1]
@@ -46,6 +48,7 @@ func NewHttpServer(args ...string) (*httpServer) {
   return &httpServer{
     IpAddr: ip,
     Port: p,
+    Logger: lggr,
     Status: "Initialized",
     Debug: false,
   }
@@ -68,7 +71,9 @@ func (srv *httpServer) RunServer() {
 //  http.HandleFunc("/status/buckets/", bucketsHandler)
   http.HandleFunc("/bucket/", dbHandler)
   http.HandleFunc("/", rootHandler)
-  log.Printf("Listening on %s", srv.Port)
+//  log.Printf("Listening on %s", srv.Port)
+  lgmsg := fmt.Sprintf("Listening on %s", srv.Port)
+  self.Logger.WriteLog(lgmsg)
 
   // Start the server
   listen := []string{srv.IpAddr, srv.Port}
@@ -77,12 +82,17 @@ func (srv *httpServer) RunServer() {
 
 // Route declarations
 func rootHandler(w http.ResponseWriter, r *http.Request) {
-  rlog("rootHandler", r)
+//  rlog("rootHandler", r)
+  lgmsg := fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
+  self.Logger.WriteLog(lgmsg)
   http.Redirect(w, r, "/status", http.StatusFound)
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {
-  rlog("statusHandler", r)
+//  rlog("statusHandler", r)
+  lgmsg := fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
+  self.Logger.WriteLog(lgmsg)
+
   w.Header().Set("Content-Type", "application/json")
   js, err := json.MarshalIndent(&self, "", "  ")
   if err != nil {
@@ -93,7 +103,9 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func bucketsHandler(w http.ResponseWriter, r *http.Request) {
-  rlog("bucketsHandler", r)
+  lgmsg := fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
+  self.Logger.WriteLog(lgmsg)
+
   w.Header().Set("Content-Type", "application/json")
   js, err := json.MarshalIndent(buckets, "", "  ")
   if err != nil {

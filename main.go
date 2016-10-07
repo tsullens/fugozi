@@ -1,12 +1,12 @@
 package main
 
 import (
-  "fugozi/httpserver"
+  "fugozi/server"
   "log"
 )
 
 func main() {
-  srv := httpserver.NewHttpServer()
+  srv := server.NewHttpServer()
   srv.SetHttpServerDebug(true)
   log.Printf("%v %v", srv.Status, srv.Debug)
   srv.RunServer()
