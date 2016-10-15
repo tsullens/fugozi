@@ -2,11 +2,13 @@ package server
 
 import (
   "fugozi/database"
+//  "fugozi/util"
   "net/http"
   "io"
   "encoding/json"
   "regexp"
   "fmt"
+  "time"
 )
 
 // Accpeted Paths:
@@ -19,15 +21,13 @@ func dbHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case "GET":
     dbGetHandler(w, r)
-  case "POST":
-    dbPostHandler(w, r)
+  case "PUT":
+    dbPutHandler(w, r)
   }
 }
 
 func dbGetHandler(w http.ResponseWriter, r *http.Request) {
-
-  lgmsg := fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
-  self.Logger.WriteLog(lgmsg)
+  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
   m := validPath.FindStringSubmatch(r.URL.Path)
   if m == nil {
@@ -41,7 +41,7 @@ func dbGetHandler(w http.ResponseWriter, r *http.Request) {
 
   if (self.Debug) {
     lgmsg := fmt.Sprintf("%v %v %v", m, len(m), exists)
-    self.Logger.WriteLog(lgmsg)
+    self.Logger.Write(lgmsg)
   }
 
   // if the bucket key exists, let's serve the content
@@ -69,6 +69,7 @@ func dbGetHandler(w http.ResponseWriter, r *http.Request) {
           return
         }
         w.Write(js)
+        return
       }
     } else {
       // $bucket wasn't found, return a 404
@@ -79,13 +80,11 @@ func dbGetHandler(w http.ResponseWriter, r *http.Request) {
 
 // if /$bucket exists, insert / update the doc
 
-func dbPostHandler(w http.ResponseWriter, r *http.Request) {
+func dbPutHandler(w http.ResponseWriter, r *http.Request) {
+  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
   var bucket *database.Bucket
   var exists bool
-
-  lgmsg := fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
-  self.Logger.WriteLog(lgmsg)
 
   m := validPath.FindStringSubmatch(r.URL.Path)
   if m == nil {
@@ -99,7 +98,7 @@ func dbPostHandler(w http.ResponseWriter, r *http.Request) {
 
   if (self.Debug) {
     lgmsg := fmt.Sprintf("%v %v %v", m, len(m), exists)
-    self.Logger.WriteLog(lgmsg)
+    self.Logger.Write(lgmsg)
   }
 
   // bucket doesn't exist, let's create one and add the doc if /$doc is present
@@ -119,7 +118,7 @@ func dbPostHandler(w http.ResponseWriter, r *http.Request) {
   if m[3] != "" {
     if (self.Debug) {
       lgmsg := fmt.Sprintf("%v", r.ContentLength)
-      self.Logger.WriteLog(lgmsg)
+      self.Logger.Write(lgmsg)
     }
     if r.ContentLength < 1 {
       http.Error(w, "Request content length 0 or undeterminable", http.StatusBadRequest)
@@ -133,8 +132,9 @@ func dbPostHandler(w http.ResponseWriter, r *http.Request) {
     }
     if (self.Debug) {
       lgmsg := fmt.Sprintf("%s\n", buf)
-      self.Logger.WriteLog(lgmsg)
+      self.Logger.Write(lgmsg)
     }
     bucket.Update(m[3], buf)
+    return
   }
 }

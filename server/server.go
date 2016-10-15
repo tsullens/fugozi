@@ -2,6 +2,7 @@ package server
 
 import (
   "fugozi/database"
+  "fugozi/util"
   "net/http"
   "sync"
   "encoding/json"
@@ -25,7 +26,7 @@ const (
 type httpServer struct {
   IpAddr string
   Port string
-  Logger *Logger `json:"-"`
+  Logger *util.LumberJack `json:"-"`
   Status string
   StartTime string
   Debug bool
@@ -33,7 +34,7 @@ type httpServer struct {
 
 func NewHttpServer(args ...string) (*httpServer) {
   var ip, p string
-  lggr := NewLogger("db.log")
+  lggr := util.NewLumberJack("db.log")
   switch len(args){
   case 0:
     ip = ""
@@ -68,52 +69,54 @@ func (srv *httpServer) RunServer() {
 
   // Route Handlers
   http.HandleFunc("/status/", statusHandler)
-//  http.HandleFunc("/status/buckets/", bucketsHandler)
+
   http.HandleFunc("/bucket/", dbHandler)
   http.HandleFunc("/", rootHandler)
 
   lgmsg := fmt.Sprintf("Listening on %s", srv.Port)
-  self.Logger.WriteLog(lgmsg)
+  self.Logger.Write(lgmsg)
 
   // Start the server
   listen := []string{srv.IpAddr, srv.Port}
 
   err := http.ListenAndServe(strings.Join(listen, ""), nil)
-  self.Logger.WriteLog(err.Error())
+  self.Logger.Write(err.Error())
   os.Exit(1)
 }
+
+func RequestLog(msg string, start time.Time) {
+  elapsed := time.Since(start)
+  self.Logger.Write(fmt.Sprintf("%s %s", msg, elapsed))
+}
+
 
 // Route declarations
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 //  rlog("rootHandler", r)
-  lgmsg := fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
-  self.Logger.WriteLog(lgmsg)
+  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
+
   http.Redirect(w, r, "/status", http.StatusFound)
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 //  rlog("statusHandler", r)
-  lgmsg := fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
-  self.Logger.WriteLog(lgmsg)
+  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
   w.Header().Set("Content-Type", "application/json")
   js, err := json.MarshalIndent(&self, "", "  ")
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
-    return
   }
   w.Write(js)
 }
 
 func bucketsHandler(w http.ResponseWriter, r *http.Request) {
-  lgmsg := fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
-  self.Logger.WriteLog(lgmsg)
+  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
   w.Header().Set("Content-Type", "application/json")
   js, err := json.MarshalIndent(buckets, "", "  ")
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
-    return
   }
   w.Write(js)
 }
