@@ -32,6 +32,18 @@ type httpServer struct {
   Debug bool
 }
 
+func NewHttpServer(ip, port string, lggr *util.LumberJack, debug bool) (*httpServer) {
+  return &httpServer{
+    IpAddr: ip,
+    Port: port,
+    Logger: lggr,
+    Status: "Initialized",
+    Debug: debug,
+  }
+}
+
+/*
+ * Deprecated httpServer creation function *
 func NewHttpServer(args ...string) (*httpServer) {
   var ip, p string
   lggr := util.NewLumberJack("db.log")
@@ -54,7 +66,11 @@ func NewHttpServer(args ...string) (*httpServer) {
     Debug: false,
   }
 }
+*/
 
+/*
+ * Deprecated - not used, but available *
+*/
 func (srv *httpServer) SetHttpServerDebug(val bool) {
   srv.Debug = val
 }
@@ -64,6 +80,7 @@ func (srv *httpServer) RunServer() {
   srv.Status = "Running"
   srv.StartTime = time.Now().Format(timeLayout)
   self = srv
+  binding := []string{srv.IpAddr, srv.Port}
 
   initialize()
 
@@ -73,22 +90,15 @@ func (srv *httpServer) RunServer() {
   http.HandleFunc("/bucket/", dbHandler)
   http.HandleFunc("/", rootHandler)
 
-  lgmsg := fmt.Sprintf("Listening on %s", srv.Port)
+  lgmsg := fmt.Sprintf("Listening on %s", strings.Join(binding, ":"))
   self.Logger.Write(lgmsg)
 
   // Start the server
-  listen := []string{srv.IpAddr, srv.Port}
 
-  err := http.ListenAndServe(strings.Join(listen, ""), nil)
+  err := http.ListenAndServe(strings.Join(binding, ":"), nil)
   self.Logger.Write(err.Error())
   os.Exit(1)
 }
-
-func RequestLog(msg string, start time.Time) {
-  elapsed := time.Since(start)
-  self.Logger.Write(fmt.Sprintf("%s %s", msg, elapsed))
-}
-
 
 // Route declarations
 func rootHandler(w http.ResponseWriter, r *http.Request) {
