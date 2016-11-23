@@ -17,3 +17,15 @@ func NewDatabase() (*Database) {
     Logger: util.NewLumberJack(util.Config.DbLog),
   }
 }
+
+func (*Database db) Select(bucketId string, docId string) ([]byte, error){
+
+}
+
+func (*Database db) Insert(bucketId, docId string, doc []byte) (error) {
+
+}
+
+func (*Database db) Delete(bucketId, docId string) (error) {
+
+}
