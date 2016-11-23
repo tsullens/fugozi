@@ -31,13 +31,13 @@ type httpServer struct {
   Debug bool
 }
 
-func NewHttpServer(ip, port string, lggr *util.LumberJack, debug bool) (*httpServer) {
+func NewHttpServer() (*httpServer) {
   return &httpServer{
-    IpAddr: ip,
-    Port: port,
-    Logger: lggr,
+    IpAddr: util.Config.IpAddress,
+    Port: util.Config.Port,
+    Logger: util.NewLumberJack(util.Config.HttpLog),
     Status: "Initialized",
-    Debug: debug,
+    Debug: util.Config.Debug,
   }
 }
 
