@@ -1,11 +1,9 @@
 package server
 
 import (
-  "fugozi/database"
+  "go-cached/database"
   "net/http"
   "log"
-  "time"
-  "fmt"
 )
 
 /*
@@ -18,15 +16,6 @@ func rlog(message string, r *http.Request) {
   }
   log.Printf("%s", message)
 }
-
-/*
-  Simple abstraction to handle writing request times to the Logger (LumberJack)
-*/
-func RequestLog(msg string, start time.Time) {
-  elapsed := time.Since(start)
-  self.Logger.Write(fmt.Sprintf("%s %s", msg, elapsed))
-}
-
 
 func initialize() {
   test := database.NewBucket("_default")

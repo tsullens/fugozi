@@ -1,8 +1,8 @@
 package main
 
 import (
-  "fugozi/server"
-  "fugozi/util"
+  "go-cached/server"
+  "go-cached/util"
   "flag"
   "regexp"
   "fmt"

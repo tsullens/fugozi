@@ -3,28 +3,29 @@ package database
 import (
   "sync"
   "errors"
+  "bytes"
 )
-
-type Bucket struct {
-  Name string
-  database *lock_collection `json:"-"`
-}
 
 type lock_collection struct {
   sync.RWMutex
   collection map[string][]byte
 }
 
+func NewLockCollection() (*lock_collection) {
+  return &lock_collection{
+    collection: make(map[string][]byte),
+  }
+}
+
+type Bucket struct {
+  Name string
+  database *lock_collection `json:"-"`
+}
+
 func NewBucket(name string) (*Bucket) {
   return &Bucket{
     Name: name,
     database: NewLockCollection(),
-  }
-}
-
-func NewLockCollection() (*lock_collection) {
-  return &lock_collection{
-    collection: make(map[string][]byte),
   }
 }
 
@@ -40,7 +41,7 @@ func (bucket *Bucket) Get(key string) ([]byte, error) {
 func (bucket *Bucket) Update(key string, doc []byte) {
   bucket.database.Lock()
   defer bucket.database.Unlock()
-  bucket.database.collection[key] = doc
+  bucket.database.collection[key] = bytes.ToLower(doc)
   return
 }
 

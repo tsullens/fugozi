@@ -1,4 +1,4 @@
-# fugozi
+# go-cached
 
 ### what?
 Terribly named in-memory document database (read: key:value), pretty much expecting json,

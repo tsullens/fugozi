@@ -1,11 +1,10 @@
 package server
 
 import (
-  "fugozi/database"
-  "fugozi/util"
+  "go-cached/database"
+  "go-cached/util"
   "net/http"
   "sync"
-  "encoding/json"
   "time"
   "fmt"
   "strings"
@@ -43,30 +42,12 @@ func NewHttpServer(ip, port string, lggr *util.LumberJack, debug bool) (*httpSer
 }
 
 /*
- * Deprecated httpServer creation function *
-func NewHttpServer(args ...string) (*httpServer) {
-  var ip, p string
-  lggr := util.NewLumberJack("db.log")
-  switch len(args){
-  case 0:
-    ip = ""
-    p = ":3341"
-  case 1:
-    ip = args[0]
-    p = ":3341"
-  case 2:
-    ip = args[0]
-    p = args[1]
-  }
-  return &httpServer{
-    IpAddr: ip,
-    Port: p,
-    Logger: lggr,
-    Status: "Initialized",
-    Debug: false,
-  }
-}
+  Simple abstraction to handle writing request times to the Logger (LumberJack)
 */
+func RequestLog(msg string, start time.Time) {
+  elapsed := time.Since(start)
+  self.Logger.Write(fmt.Sprintf("%s %s", msg, elapsed))
+}
 
 /*
  * Deprecated - not used, but available *
@@ -98,35 +79,4 @@ func (srv *httpServer) RunServer() {
   err := http.ListenAndServe(strings.Join(binding, ":"), nil)
   self.Logger.Write(err.Error())
   os.Exit(1)
-}
-
-// Route declarations
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-//  rlog("rootHandler", r)
-  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
-
-  http.Redirect(w, r, "/status", http.StatusFound)
-}
-
-func statusHandler(w http.ResponseWriter, r *http.Request) {
-//  rlog("statusHandler", r)
-  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
-
-  w.Header().Set("Content-Type", "application/json")
-  js, err := json.MarshalIndent(&self, "", "  ")
-  if err != nil {
-    http.Error(w, err.Error(), http.StatusInternalServerError)
-  }
-  w.Write(js)
-}
-
-func bucketsHandler(w http.ResponseWriter, r *http.Request) {
-  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
-
-  w.Header().Set("Content-Type", "application/json")
-  js, err := json.MarshalIndent(buckets, "", "  ")
-  if err != nil {
-    http.Error(w, err.Error(), http.StatusInternalServerError)
-  }
-  w.Write(js)
 }
