@@ -17,19 +17,15 @@ func rlog(message string, r *http.Request) {
   log.Printf("%s", message)
 }
 
-func initialize() {
-  test := database.NewBucket("_default")
-  test.Update("default", []byte(`
+func initialize(docDB *database.Database) {
+  docDB.Insert("_default", "default", []byte(`
     {
     "Name": "default doc"
     }
     `))
-  test.Update("test1", []byte(`
+  docDB.Insert("_default", "test1", []byte(`
     {
     "Name": "test1"
     }
     `))
-  buckets.Lock()
-  buckets.m[test.Name] = test
-  buckets.Unlock()
 }

@@ -10,14 +10,14 @@ import (
 // Route declarations
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 //  rlog("rootHandler", r)
-  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
+  defer RequestLog(fmt.Sprintf("%s %s %d %s %s", r.Method, r.URL.Path, w.Header().Get("status"), r.Proto, r.RemoteAddr), time.Now())
 
-  http.Redirect(w, r, "/status", http.StatusFound)
+  http.Redirect(w, r, "/status", http.StatusMovedPermanently)
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 //  rlog("statusHandler", r)
-  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
+  defer RequestLog(fmt.Sprintf("%s %s %s %s %s", r.Method, r.URL.Path, r.Proto, w.Header().Get("status"), r.RemoteAddr), time.Now())
 
   w.Header().Set("Content-Type", "application/json")
   js, err := json.MarshalIndent(&self, "", "  ")
@@ -29,7 +29,7 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 
 /*
   Not used currently
-*/
+
 func bucketsHandler(w http.ResponseWriter, r *http.Request) {
   defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
@@ -40,3 +40,4 @@ func bucketsHandler(w http.ResponseWriter, r *http.Request) {
   }
   w.Write(js)
 }
+*/

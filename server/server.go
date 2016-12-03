@@ -4,7 +4,6 @@ import (
   "go-cached/database"
   "go-cached/util"
   "net/http"
-  "sync"
   "time"
   "fmt"
   "strings"
@@ -13,10 +12,7 @@ import (
 
 var (
   self *httpServer
-  buckets = struct {
-    sync.RWMutex
-    m map[string]*database.Bucket
-  }{m: make(map[string]*database.Bucket)}
+  docDB *database.Database
 )
 const (
   timeLayout = "2006-01-02 15:04:05.000 MST"
@@ -25,7 +21,7 @@ const (
 type httpServer struct {
   IpAddr string
   Port string
-  Logger *util.LumberJack `json:"-"`
+  logger *util.LumberJack `json:"-"`
   Status string
   StartTime string
   Debug bool
@@ -35,18 +31,18 @@ func NewHttpServer() (*httpServer) {
   return &httpServer{
     IpAddr: util.Config.IpAddress,
     Port: util.Config.Port,
-    Logger: util.NewLumberJack(util.Config.HttpLog),
+    logger: util.NewLumberJack(util.Config.HttpLog),
     Status: "Initialized",
     Debug: util.Config.Debug,
   }
 }
 
 /*
-  Simple abstraction to handle writing request times to the Logger (LumberJack)
+  Simple abstraction to handle writing request times to the logger (LumberJack)
 */
 func RequestLog(msg string, start time.Time) {
   elapsed := time.Since(start)
-  self.Logger.Write(fmt.Sprintf("%s %s", msg, elapsed))
+  self.logger.Write(fmt.Sprintf("%s %s", msg, elapsed))
 }
 
 /*
@@ -61,9 +57,10 @@ func (srv *httpServer) RunServer() {
   srv.Status = "Running"
   srv.StartTime = time.Now().Format(timeLayout)
   self = srv
+  docDB = database.NewDatabase()
   binding := []string{srv.IpAddr, srv.Port}
 
-  initialize()
+  initialize(docDB)
 
   // Route Handlers
   http.HandleFunc("/status/", statusHandler)
@@ -72,11 +69,11 @@ func (srv *httpServer) RunServer() {
   http.HandleFunc("/", rootHandler)
 
   lgmsg := fmt.Sprintf("Listening on %s", strings.Join(binding, ":"))
-  self.Logger.Write(lgmsg)
+  self.logger.Write(lgmsg)
 
   // Start the server
 
   err := http.ListenAndServe(strings.Join(binding, ":"), nil)
-  self.Logger.Write(err.Error())
+  self.logger.Write(err.Error())
   os.Exit(1)
 }

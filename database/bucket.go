@@ -2,7 +2,6 @@ package database
 
 import (
   "sync"
-  "errors"
   "bytes"
 )
 
@@ -18,35 +17,38 @@ func NewLockCollection() (*lock_collection) {
 }
 
 type Bucket struct {
-  Name string
-  database *lock_collection `json:"-"`
+  sync.RWMutex
+  BucketId string
+  //database *lock_collection `json:"-"`
+  collection map[string][]byte
 }
 
 func NewBucket(name string) (*Bucket) {
   return &Bucket{
-    Name: name,
-    database: NewLockCollection(),
+    BucketId: name,
+    //database: NewLockCollection(),
+    collection: make(map[string][]byte),
   }
 }
 
-func (bucket *Bucket) Get(key string) ([]byte, error) {
-  bucket.database.RLock()
-  defer bucket.database.RUnlock()
-  if doc, ok := bucket.database.collection[key]; ok {
-    return doc, nil
+func (bucket *Bucket) Get(key string) ([]byte) {
+  bucket.RLock()
+  defer bucket.RUnlock()
+  if doc, exists := bucket.collection[key]; exists {
+    return doc
   }
-  return nil, errors.New("Key not found")
+  return nil
 }
 
 func (bucket *Bucket) Update(key string, doc []byte) {
-  bucket.database.Lock()
-  defer bucket.database.Unlock()
-  bucket.database.collection[key] = bytes.ToLower(doc)
+  bucket.Lock()
+  defer bucket.Unlock()
+  bucket.collection[key] = bytes.ToLower(doc)
   return
 }
 
 func (bucket *Bucket) Delete(key string) {
-  bucket.database.Lock()
-  defer bucket.database.Unlock()
-  delete(bucket.database.collection, key)
+  bucket.Lock()
+  defer bucket.Unlock()
+  delete(bucket.collection, key)
 }
