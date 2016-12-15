@@ -60,7 +60,7 @@ func dbPutHandler(w http.ResponseWriter, r *http.Request) {
 
   if (self.Debug) {
     lgmsg := fmt.Sprintf("%v", r.ContentLength)
-    self.logger.Write(lgmsg)
+    self.Write(lgmsg)
   }
   if r.ContentLength < 1 {
     http.Error(w, "Request content length 0 or undeterminable", http.StatusBadRequest)
@@ -75,3 +75,10 @@ func dbPutHandler(w http.ResponseWriter, r *http.Request) {
   docDB.Insert(m[2], m[3], buf)
   return
 }
+
+/*
+func dbDeleteHandler(w http.ResponseWriter, r *http.Request) {
+  defer RequestLog(fmt.Sprintf("%s %s %s %s %s", r.Method, r.URL.Path, w.Header().Get("status"), r.Proto, r.RemoteAddr), time.Now())
+
+}
+*/

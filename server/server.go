@@ -21,7 +21,7 @@ const (
 type httpServer struct {
   IpAddr string
   Port string
-  logger *util.LumberJack `json:"-"`
+  *util.LumberJack `json:"-"`
   Status string
   StartTime string
   Debug bool
@@ -31,7 +31,7 @@ func NewHttpServer() (*httpServer) {
   return &httpServer{
     IpAddr: util.Config.IpAddress,
     Port: util.Config.Port,
-    logger: util.NewLumberJack(util.Config.HttpLog),
+    util.NewLumberJack(util.Config.HttpLog),
     Status: "Initialized",
     Debug: util.Config.Debug,
   }
@@ -42,7 +42,7 @@ func NewHttpServer() (*httpServer) {
 */
 func RequestLog(msg string, start time.Time) {
   elapsed := time.Since(start)
-  self.logger.Write(fmt.Sprintf("%s %s", msg, elapsed))
+  self.Write(fmt.Sprintf("%s %s", msg, elapsed))
 }
 
 /*
@@ -69,11 +69,11 @@ func (srv *httpServer) RunServer() {
   http.HandleFunc("/", rootHandler)
 
   lgmsg := fmt.Sprintf("Listening on %s", strings.Join(binding, ":"))
-  self.logger.Write(lgmsg)
+  self.Write(lgmsg)
 
   // Start the server
 
   err := http.ListenAndServe(strings.Join(binding, ":"), nil)
-  self.logger.Write(err.Error())
+  self.Write(err.Error())
   os.Exit(1)
 }

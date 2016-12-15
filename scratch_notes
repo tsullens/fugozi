@@ -1,0 +1,17 @@
+- embedding:
+  type Foo struct {
+    id string
+    *util.LumberJack
+  }
+  Now: Foo.Write(msg)
+  // go will pass Write(msg) internally to the util.LumberJack instance
+
+- for map[string]*Bucket to work with Bucket as an interface, would need to do:
+  func Select(b *Bucket, docId string) {
+    b.Select(docId)
+  }
+  - other option is to not reference Bucket as a pointer in docDB's map
+  - maybe bring back lock_collection as collection (interface), use embedding and
+    implement the underlying data stores / data engines as collection with Bucket
+    being more of a meta object
+- should there be a differentiation between insert and update? Put / Post?
