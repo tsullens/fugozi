@@ -12,10 +12,8 @@ type Bucket interface {
 }
 
 type LockBucket struct {
-  sync.RWMutex
   BucketId string
-  //database *lock_collection `json:"-"`
-  collection map[string][]byte
+  *lock_collection `json:"-"`
 }
 
 func NewLockBucket(name string) (*LockBucket) {
@@ -26,8 +24,8 @@ func NewLockBucket(name string) (*LockBucket) {
   }
 }
 
-func (bucket *LockBucket) Get(key string) ([]byte) {
-  bucket.RLock()
+func (bucket LockBucket) Get(key string) ([]byte) {
+  bucket.collection.RLock()
   defer bucket.RUnlock()
   if doc, exists := bucket.collection[key]; exists {
     return doc
@@ -35,9 +33,9 @@ func (bucket *LockBucket) Get(key string) ([]byte) {
   return nil
 }
 
-func (bucket *LockBucket) Insert(key string, doc []byte) (error){
-  bucket.Lock()
-  defer bucket.Unlock()
+func (bucket LockBucket) Insert(key string, doc []byte) (error){
+  bucket.collection.Lock()
+  defer bucket.collection.Unlock()
   if doc, exists := bucket.collection[key]; exists {
     return error
   } else {
@@ -46,9 +44,9 @@ func (bucket *LockBucket) Insert(key string, doc []byte) (error){
   }
 }
 
-func (bucket *LockBucket) Update(key string, doc []byte) {
-  bucket.Lock()
-  defer bucket.Unlock()
+func (bucket LockBucket) Update(key string, doc []byte) {
+  bucket.collection.Lock()
+  defer bucket..collection.Unlock()
   bucket.collection[key] = bytes.ToLower(doc)
   return
 }
@@ -60,9 +58,6 @@ func (bucket *LockBucket) Delete(key string) {
 }
 
 
-/*
-  Not Used Currently
-*/
 type lock_collection struct {
   sync.RWMutex
   collection map[string][]byte

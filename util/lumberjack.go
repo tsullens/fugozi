@@ -19,7 +19,7 @@ func NewLumberJack(fpath string) (*LumberJack) {
   if err != nil {
     panic(err)
   }
-  ch := make(chan string)
+  ch := make(chan string, 100)
   go run(ch, fi)
   return &LumberJack {
     Channel: ch,
