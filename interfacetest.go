@@ -80,17 +80,11 @@ func main() {
 	for index, bucket := range buckets {
 		for key, _ := range items {
       item, err := bucket.Get(key)
-      if err == nil {
-        fmt.Sprintf("%s: %s -> %s", index, key, item)
-      } else {
+      if err != nil {
         fmt.Println(err)
+      } else {
+        fmt.Printf("%v: %v -> %v\n", index, key, item)
       }
 		}
 	}
-  item, err := buckets[0].Get("test1")
-  if err == nil {
-    fmt.Sprintf("%s", item)
-  } else {
-    fmt.Println(err)
-  }
 }
