@@ -10,17 +10,17 @@ import (
 // Route declarations
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 //  rlog("rootHandler", r)
-  defer RequestLog(fmt.Sprintf("%s %s %d %s %s", r.Method, r.URL.Path, w.Header().Get("status"), r.Proto, r.RemoteAddr), time.Now())
+  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
   http.Redirect(w, r, "/status", http.StatusMovedPermanently)
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 //  rlog("statusHandler", r)
-  defer RequestLog(fmt.Sprintf("%s %s %s %s %s", r.Method, r.URL.Path, r.Proto, w.Header().Get("status"), r.RemoteAddr), time.Now())
+  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
   w.Header().Set("Content-Type", "application/json")
-  js, err := json.MarshalIndent(&self, "", "  ")
+  js, err := json.MarshalIndent(Config, "", "  ")
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
   }

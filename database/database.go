@@ -9,31 +9,49 @@ import (
 
 type Database struct {
   sync.RWMutex
-  buckets map[string]Bucket
-  *util.LumberJack
+  buckets map[string]*Bucket
+  log *util.LumberJack
 }
 
-func transactionLog(msg string, dbTransactionStart time.Time) {
+func (db *Database) transactionLog(msg string, dbTransactionStart time.Time) {
   // Format here is generally for a message to be thus:
   // $bucketId <METHOD> $docId [bucketTransactionTime] | [totalTransactionTime]
-  db.Write(fmt.Sprintf("%s | Total Transaction %s", msg, time.Since(dbTransactionStart)))
+  db.log.Write(fmt.Sprintf("%s | Total Transaction %s", msg, time.Since(dbTransactionStart)))
 }
 
-func NewDatabase() (*Database) {
+func NewDatabase(dblog string) (*Database) {
     return &Database{
-    buckets: make(map[string]Bucket),
-    util.NewLumberJack(util.Config.DbLog),
-  }
+      buckets: make(map[string]*Bucket),
+      log: util.NewLumberJack(dblog),
+    }
 }
 
-func (db *Database) Select(bucketId string, docId string) ([]byte) {
+func (db *Database) AddBucket(b BucketMetaData) (error) {
+  // Create bucket
+  db.Lock()
+  defer db.Unlock()
+  _, exists := db.buckets[b.bucketId]
+  if exists {
+    return &BucketExistsError{bucketId: b.bucketId}
+  }
+  bucket, err := NewBucket(b)
+  if err != nil {
+    return err
+  }
+  db.buckets[b.bucketId] = bucket
+  return nil
+}
+
+func (db *Database) Select(bucketId string, docId string) ([]byte, error) {
   var msg string
-  defer transactionLog(msg, time.Now())
+  defer db.transactionLog(msg, time.Now())
 
   db.RLock()
   bucket, exists := db.buckets[bucketId]
   db.RUnlock()
-  if exists {
+  if !exists {
+    return nil, &BucketNotFoundError{bucketId: bucketId}
+  } else {
     bucketTransactionStart := time.Now()
     doc := bucket.Get(docId)
     bucketTransactionTime := time.Since(bucketTransactionStart)
@@ -42,56 +60,46 @@ func (db *Database) Select(bucketId string, docId string) ([]byte) {
     } else {
       msg = fmt.Sprintf("%s SELECT MISS %s %s", bucketId, docId, bucketTransactionTime)
     }
-    return doc
-  } else {
-    return nil
+    return doc, nil
   }
 }
 
-func (db *Database) Insert(bucketId, docId string, doc []byte) {
+func (db *Database) Update(bucketId, docId string, doc []byte) (error) {
   var (
-    bucket Bucket
+    bucket *Bucket
     exists bool
     msg string
   )
-  defer transactionLog(msg, time.Now())
-  // Try to get the bucket from our current buckets map, if it doesn't
-  // exist, let's create it. At the end of this, bucket should always
-  // reference a *Bucket
+  defer db.transactionLog(msg, time.Now())
   db.RLock()
   bucket, exists = db.buckets[bucketId]
   db.RUnlock()
   if !exists {
-    db.Lock()
-    db.buckets[bucketId] = NewLockBucket(bucketId)
-    bucket = db.buckets[bucketId]
-    db.Unlock()
+    return &BucketNotFoundError{bucketId: bucketId}
+  } else {
+    bucketTransactionStart := time.Now()
+    bucket.Update(docId, doc)
+    bucketTransactionTime := time.Since(bucketTransactionStart)
+    msg = fmt.Sprintf("%s INSERT %s %s", bucketId, docId, bucketTransactionTime)
+    return nil
   }
-
-  // Error Handling here?
-  // What happens if a write to the bucket's collection fails? Is it possible?
-  bucketTransactionStart := time.Now()
-  bucket.Update(docId, doc)
-  bucketTransactionTime := time.Since(bucketTransactionStart)
-  msg = fmt.Sprintf("%s INSERT %s %s", bucketId, docId, bucketTransactionTime)
-  return
 }
 
 
 func (db *Database) Delete(bucketId, docId string) (error) {
   var msg string
-  defer transactionLog(msg, time.Now())
+  defer db.transactionLog(msg, time.Now())
 
   db.RLock()
   bucket, exists := db.buckets[bucketId]
   db.RUnlock()
-  if exists {
+  if !exists {
+    return &BucketNotFoundError{bucketId: bucketId}
+  } else {
     bucketTransactionStart := time.Now()
-    doc := bucket.Delete(docId)
+    bucket.Delete(docId)
     bucketTransactionTime := time.Since(bucketTransactionStart)
     msg = fmt.Sprintf("%s DELETE %s %s", bucketId, docId, bucketTransactionTime)
-    return doc
-  } else {
     return nil
   }
 

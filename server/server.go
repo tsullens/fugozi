@@ -11,30 +11,20 @@ import (
 )
 
 var (
-  self *httpServer
-  docDB *database.Database
+  DocumentDatabase *database.Database
+  Logger *util.LumberJack
+  Config *Configuration
 )
 const (
   timeLayout = "2006-01-02 15:04:05.000 MST"
 )
 
-type httpServer struct {
-  IpAddr string
+type Configuration struct {
+  IpAddress string
   Port string
-  *util.LumberJack `json:"-"`
-  Status string
-  StartTime string
+  HttpLog string
+  DbLog string
   Debug bool
-}
-
-func NewHttpServer() (*httpServer) {
-  return &httpServer{
-    IpAddr: util.Config.IpAddress,
-    Port: util.Config.Port,
-    util.NewLumberJack(util.Config.HttpLog),
-    Status: "Initialized",
-    Debug: util.Config.Debug,
-  }
 }
 
 /*
@@ -42,38 +32,31 @@ func NewHttpServer() (*httpServer) {
 */
 func RequestLog(msg string, start time.Time) {
   elapsed := time.Since(start)
-  self.Write(fmt.Sprintf("%s %s", msg, elapsed))
+  Logger.Write(fmt.Sprintf("%s %s", msg, elapsed))
 }
 
-/*
- * Deprecated - not used, but available *
-*/
-func (srv *httpServer) SetHttpServerDebug(val bool) {
-  srv.Debug = val
-}
-
-func (srv *httpServer) RunServer() {
-
-  srv.Status = "Running"
-  srv.StartTime = time.Now().Format(timeLayout)
-  self = srv
-  docDB = database.NewDatabase()
-  binding := []string{srv.IpAddr, srv.Port}
-
-  initialize(docDB)
+func RunServer(config *Configuration) {
+  Config = config
+  DocumentDatabase = database.NewDatabase(Config.DbLog)
+  Logger = util.NewLumberJack(Config.HttpLog)
+  binding := []string{Config.IpAddress, Config.Port}
+  //srv.Status = "Running"
+  //srv.StartTime = time.Now().Format(timeLayout)
+  //self = srv
+  //initialize(DocumentDatabase)
 
   // Route Handlers
   http.HandleFunc("/status/", statusHandler)
-
-  http.HandleFunc("/bucket/", dbHandler)
-  http.HandleFunc("/", rootHandler)
+  http.HandleFunc("/bucket/", docAPIHandler)
+  http.HandleFunc("/db/bucket/", dbAPIHandler)
+//  http.HandleFunc("/", rootHandler)
 
   lgmsg := fmt.Sprintf("Listening on %s", strings.Join(binding, ":"))
-  self.Write(lgmsg)
+  Logger.Write(lgmsg)
 
   // Start the server
 
   err := http.ListenAndServe(strings.Join(binding, ":"), nil)
-  self.Write(err.Error())
+  Logger.Write(err.Error())
   os.Exit(1)
 }

@@ -4,67 +4,81 @@ import (
   "sync"
   "bytes"
 )
+/*
+type document struct {
+  timestamp time.Time
+  data []byte
+}
+*/
+type document []byte
 
-type Bucket interface {
-  Get() []byte
-  Update()
-  Delete()
+type BucketMetaData struct {
+  sync.RWMutex
+  bucketId string
+  docCount int
+  primaryKey string
+  secodaryKeys []string
+  engine string
 }
 
-type LockBucket struct {
-  BucketId string
-  *lock_collection `json:"-"`
+func (bmd *BucketMetaData) updateDocCount(n int) {
+  bmd.Lock()
+  defer bmd.Unlock()
+  bmd.docCount = bmd.docCount + n
 }
 
-func NewLockBucket(name string) (*LockBucket) {
-  return &LockBucket{
-    BucketId: name,
-    //database: NewLockCollection(),
-    collection: make(map[string][]byte),
+type Bucket struct {
+  *BucketMetaData
+  collector
+}
+
+func NewBucket(b BucketMetaData) (*Bucket, error) {
+  switch b.engine {
+  case "syncmap":
+    return &Bucket{
+      BucketMetaData: &b,
+      collector: NewSyncMapCollector(),
+    }, nil
+  default:
+    return nil, &BucketEngineError{engineName: b.engine}
   }
 }
 
-func (bucket LockBucket) Get(key string) ([]byte) {
-  bucket.collection.RLock()
-  defer bucket.RUnlock()
-  if doc, exists := bucket.collection[key]; exists {
+type collector interface {
+  Get(string) document
+  Update(string, []byte)
+  Delete(string)
+}
+
+type syncmap_collector struct {
+  sync.RWMutex
+  collection map[string]document
+}
+
+func NewSyncMapCollector() (*syncmap_collector) {
+  return &syncmap_collector{
+    collection: make(map[string]document),
+  }
+}
+
+func (c *syncmap_collector) Get(key string) (document) {
+  c.RLock()
+  defer c.RUnlock()
+  if doc, exists := c.collection[key]; exists {
     return doc
   }
   return nil
 }
 
-func (bucket LockBucket) Insert(key string, doc []byte) (error){
-  bucket.collection.Lock()
-  defer bucket.collection.Unlock()
-  if doc, exists := bucket.collection[key]; exists {
-    return error
-  } else {
-    bucket.collection[key] = bytes.ToLower(doc)
-    return nil
-  }
-}
-
-func (bucket LockBucket) Update(key string, doc []byte) {
-  bucket.collection.Lock()
-  defer bucket..collection.Unlock()
-  bucket.collection[key] = bytes.ToLower(doc)
+func (c *syncmap_collector) Update(key string, doc []byte) {
+  c.Lock()
+  defer c.Unlock()
+  c.collection[key] = bytes.ToLower(doc)
   return
 }
 
-func (bucket *LockBucket) Delete(key string) {
-  bucket.Lock()
-  defer bucket.Unlock()
-  delete(bucket.collection, key)
-}
-
-
-type lock_collection struct {
-  sync.RWMutex
-  collection map[string][]byte
-}
-
-func NewLockCollection() (*lock_collection) {
-  return &lock_collection{
-    collection: make(map[string][]byte),
-  }
+func (c *syncmap_collector) Delete(key string) {
+  c.Lock()
+  defer c.Unlock()
+  delete(c.collection, key)
 }

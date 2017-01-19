@@ -14,32 +14,32 @@ import (
 
 var validPath = regexp.MustCompile("^/(bucket)/([a-zA-Z0-9_]+)/([a-zA-Z0-9_]+)/{0,1}$")
 
-func dbHandler(w http.ResponseWriter, r *http.Request) {
+func docAPIHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case "GET":
-    dbGetHandler(w, r)
+    docGetHandler(w, r)
   case "PUT":
-    dbPutHandler(w, r)
+    docPutHandler(w, r)
+//  case "DELETE":
+//    docDeleteHandler(w, r)
+  default:
+    http.Error(w, "", http.StatusMethodNotAllowed)
   }
 }
 
-func dbGetHandler(w http.ResponseWriter, r *http.Request) {
-  defer RequestLog(fmt.Sprintf("%s %s %s %s %s", r.Method, r.URL.Path, w.Header().Get("status"), r.Proto, r.RemoteAddr), time.Now())
-
+func docGetHandler(w http.ResponseWriter, r *http.Request) {
+  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
   // try to get a match on our endpoint
   // if no match is found, it's a bad request
   m := validPath.FindStringSubmatch(r.URL.Path)
   if m == nil {
     http.NotFound(w, r)
-    return
   }
-
-  doc := docDB.Select(m[2], m[3])
+  doc, err := DocumentDatabase.Select(m[2], m[3])
   // if doc is nil, either the bucket doesn't exist,
   // or the docId doesn't exist... either way just return a 404
-  if doc == nil {
-    http.NotFound(w, r)
-    return
+  if err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
   } else {
     // else let's write our doc content to the response
     w.Header().Set("Content-Type", "application")
@@ -48,32 +48,28 @@ func dbGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // if /$bucket exists, insert / update the doc
-
-func dbPutHandler(w http.ResponseWriter, r *http.Request) {
-  defer RequestLog(fmt.Sprintf("%s %s %s %s %s", r.Method, r.URL.Path, w.Header().Get("status"), r.Proto, r.RemoteAddr), time.Now())
+func docPutHandler(w http.ResponseWriter, r *http.Request) {
+  defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
   m := validPath.FindStringSubmatch(r.URL.Path)
   if m == nil {
     http.NotFound(w, r)
-    return
   }
-
-  if (self.Debug) {
+  if (Config.Debug) {
     lgmsg := fmt.Sprintf("%v", r.ContentLength)
-    self.Write(lgmsg)
+    Logger.Write(lgmsg)
   }
   if r.ContentLength < 1 {
     http.Error(w, "Request content length 0 or undeterminable", http.StatusBadRequest)
-    return
   }
   buf := make([]byte, r.ContentLength)
   _, err := io.ReadFull(r.Body, buf)
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
-    return
   }
-  docDB.Insert(m[2], m[3], buf)
-  return
+  if err := DocumentDatabase.Update(m[2], m[3], buf); err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+  }
 }
 
 /*

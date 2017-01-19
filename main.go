@@ -2,7 +2,6 @@ package main
 
 import (
   "go-cached/server"
-  "go-cached/util"
   "flag"
   "regexp"
   "fmt"
@@ -32,14 +31,12 @@ func main() {
     os.Exit(1)
   }
 
-  util.Config = &util.Configuration{
+  config := &server.Configuration{
     IpAddress: ipAddress,
     Port: port,
     HttpLog: httpLog,
     DbLog: dbLog,
     Debug: debug,
   }
-
-  srv := server.NewHttpServer()
-  srv.RunServer()
+  server.RunServer(config)
 }
