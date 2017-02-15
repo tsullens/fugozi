@@ -48,7 +48,8 @@ func RunServer(config *Configuration) {
   // Route Handlers
   http.HandleFunc("/status/", statusHandler)
   http.HandleFunc("/bucket/", docAPIHandler)
-  http.HandleFunc("/db/bucket/", dbAPIHandler)
+  http.HandleFunc("/db/", dbBucketAPIHandler)
+  //http.HandleFunc("/db/stats/", dbStatsAPIHandler)
 //  http.HandleFunc("/", rootHandler)
 
   lgmsg := fmt.Sprintf("Listening on %s", strings.Join(binding, ":"))

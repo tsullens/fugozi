@@ -16,7 +16,7 @@ type Database struct {
 func (db *Database) transactionLog(msg string, dbTransactionStart time.Time) {
   // Format here is generally for a message to be thus:
   // $bucketId <METHOD> $docId [bucketTransactionTime] | [totalTransactionTime]
-  db.log.Write(fmt.Sprintf("%s | Total Transaction %s", msg, time.Since(dbTransactionStart)))
+  db.log.Write(fmt.Sprintf("%s | Transaction Time %s", msg, time.Since(dbTransactionStart)))
 }
 
 func NewDatabase(dblog string) (*Database) {
@@ -26,22 +26,63 @@ func NewDatabase(dblog string) (*Database) {
     }
 }
 
+
+// Bucket-level functions
+
+func (db *Database) GetBucketMetaData(bucketId string) (BucketMetaData, error) {
+  var logMsg string
+  defer db.transactionLog(logMsg, time.Now())
+  db.RLock()
+  bucket, exists := db.buckets[bucketId]
+  db.RUnlock()
+  if !exists {
+    err := &BucketNotFoundError{bucketId: bucketId}
+    logMsg = fmt.Sprintf("Get Bucket MetaData %s failed: %s", bucketId, err.Error())
+    return BucketMetaData{}, err
+  }
+  bmd := bucket.GetMetaData()
+  logMsg = fmt.Sprintf("Get Bucket MetaData %s completed")
+  return bmd, nil
+}
+
 func (db *Database) AddBucket(b BucketMetaData) (error) {
+  db.log.Write(fmt.Sprintf("Adding bucket: %s", b.BucketId))
   // Create bucket
+  var logMsg string
+  defer db.transactionLog(logMsg, time.Now())
   db.Lock()
   defer db.Unlock()
-  _, exists := db.buckets[b.bucketId]
+  _, exists := db.buckets[b.BucketId]
   if exists {
-    return &BucketExistsError{bucketId: b.bucketId}
+    err := &BucketExistsError{bucketId: b.BucketId}
+    logMsg = fmt.Sprintf("Add Bucket %s failed: %s", b.BucketId, err.Error())
+    return err
   }
   bucket, err := NewBucket(b)
   if err != nil {
+    logMsg = fmt.Sprintf("Add Bucket %s failed: %s", b.BucketId, err.Error())
     return err
   }
-  db.buckets[b.bucketId] = bucket
+  db.buckets[b.BucketId] = bucket
+  logMsg = fmt.Sprintf("Add Bucket %s completed", b.BucketId)
   return nil
 }
 
+func (db *Database) DeleteBucket(bucketId string) (error) {
+  db.Lock()
+  defer db.Unlock()
+  _, exists := db.buckets[bucketId]
+  if !exists {
+    err := &BucketNotFoundError{bucketId: bucketId}
+    db.log.Write(fmt.Sprintf("Delete Bucket %s failed: %s", bucketId, err.Error()))
+    return err
+  }
+  delete(db.buckets, bucketId)
+  db.log.Write(fmt.Sprintf("Deleted bucket: %s", bucketId))
+  return nil
+}
+
+// Document-level Functions
 func (db *Database) Select(bucketId string, docId string) ([]byte, error) {
   var msg string
   defer db.transactionLog(msg, time.Now())
@@ -64,7 +105,7 @@ func (db *Database) Select(bucketId string, docId string) ([]byte, error) {
   }
 }
 
-func (db *Database) Update(bucketId, docId string, doc []byte) (error) {
+func (db *Database) Update(bucketId string, doc Document) (error) {
   var (
     bucket *Bucket
     exists bool
@@ -78,7 +119,7 @@ func (db *Database) Update(bucketId, docId string, doc []byte) (error) {
     return &BucketNotFoundError{bucketId: bucketId}
   } else {
     bucketTransactionStart := time.Now()
-    bucket.Update(docId, doc)
+    bucket.Update(doc)
     bucketTransactionTime := time.Since(bucketTransactionStart)
     msg = fmt.Sprintf("%s INSERT %s %s", bucketId, docId, bucketTransactionTime)
     return nil

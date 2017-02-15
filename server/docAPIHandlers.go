@@ -6,36 +6,41 @@ import (
   "regexp"
   "fmt"
   "time"
+  "gocached/database"
+  "encoding/json"
 )
 
 // Accpeted Paths:
 // /bucket/$bucket
 // /bucket/$bucket/$doc
 
-var validPath = regexp.MustCompile("^/(bucket)/([a-zA-Z0-9_]+)/([a-zA-Z0-9_]+)/{0,1}$")
+var validDocPath = regexp.MustCompile("^/bucket/([a-zA-Z0-9_-]+)/?([a-zA-Z0-9_-])*/?")
 
 func docAPIHandler(w http.ResponseWriter, r *http.Request) {
+  matches := validDocPath.FindStringSubmatch(r.URL.Path)
+
+  if len(matches) < 2 {
+    http.NotFound(w, r)
+  }
   switch r.Method {
   case "GET":
-    docGetHandler(w, r)
-  case "PUT":
-    docPutHandler(w, r)
-//  case "DELETE":
-//    docDeleteHandler(w, r)
+    if len(matches) != 3 {
+      http.Error(w, "", http.StatusBadRequest)
+      return
+    } else {
+    docGetHandler(w, r, matches[1], matches[2])
+    }
+  case "POST":
+    docPostHandler(w, r, matches[1])
   default:
     http.Error(w, "", http.StatusMethodNotAllowed)
   }
 }
 
-func docGetHandler(w http.ResponseWriter, r *http.Request) {
+func docGetHandler(w http.ResponseWriter, r *http.Request, bucketId, docId string) {
   defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
-  // try to get a match on our endpoint
-  // if no match is found, it's a bad request
-  m := validPath.FindStringSubmatch(r.URL.Path)
-  if m == nil {
-    http.NotFound(w, r)
-  }
-  doc, err := DocumentDatabase.Select(m[2], m[3])
+
+  doc, err := DocumentDatabase.Select(bucketId, docId)
   // if doc is nil, either the bucket doesn't exist,
   // or the docId doesn't exist... either way just return a 404
   if err != nil {
@@ -48,13 +53,11 @@ func docGetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // if /$bucket exists, insert / update the doc
-func docPutHandler(w http.ResponseWriter, r *http.Request) {
+func docPostHandler(w http.ResponseWriter, r *http.Request, bucketId) {
   defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
-  m := validPath.FindStringSubmatch(r.URL.Path)
-  if m == nil {
-    http.NotFound(w, r)
-  }
+  var data database.DocumentData
+
   if (Config.Debug) {
     lgmsg := fmt.Sprintf("%v", r.ContentLength)
     Logger.Write(lgmsg)
@@ -62,12 +65,22 @@ func docPutHandler(w http.ResponseWriter, r *http.Request) {
   if r.ContentLength < 1 {
     http.Error(w, "Request content length 0 or undeterminable", http.StatusBadRequest)
   }
+
   buf := make([]byte, r.ContentLength)
   _, err := io.ReadFull(r.Body, buf)
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
   }
-  if err := DocumentDatabase.Update(m[2], m[3], buf); err != nil {
+  err = json.Unmarshal(buf, &data)
+  if err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+    return
+  }
+  var doc = Document{
+    timestamp: time.Now(),
+    data: data,
+  }
+  if err := DocumentDatabase.Update(bucketId, doc); err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
   }
 }

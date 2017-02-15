@@ -3,6 +3,7 @@ package database
 import (
   "sync"
   "bytes"
+  "time"
 )
 /*
 type document struct {
@@ -10,15 +11,22 @@ type document struct {
   data []byte
 }
 */
-type document []byte
+//type document []byte
+
+type DocumentData map[string]{}interface
+
+type Document struct {
+  timestamp time.Time
+  data DocumentData
+}
 
 type BucketMetaData struct {
   sync.RWMutex
-  bucketId string
-  docCount int
-  primaryKey string
-  secodaryKeys []string
-  engine string
+  BucketId        string `json:"bucketid" binding:"required"`
+  docCount        int
+  PrimaryKey      string `json:"primarykey" binding:"required"`
+  SecondaryKeys   []string
+  Engine          string `json:"engine" binding:"required"`
 }
 
 func (bmd *BucketMetaData) updateDocCount(n int) {
@@ -32,15 +40,21 @@ type Bucket struct {
   collector
 }
 
+func (bmd *BucketMetaData) GetMetaData() (BucketMetaData) {
+  bmd.RLock()
+  defer bmd.RUnlock()
+  return *bmd
+}
+
 func NewBucket(b BucketMetaData) (*Bucket, error) {
-  switch b.engine {
+  switch b.Engine {
   case "syncmap":
     return &Bucket{
       BucketMetaData: &b,
       collector: NewSyncMapCollector(),
     }, nil
   default:
-    return nil, &BucketEngineError{engineName: b.engine}
+    return nil, &BucketEngineError{engineName: b.Engine}
   }
 }
 
@@ -70,7 +84,7 @@ func (c *syncmap_collector) Get(key string) (document) {
   return nil
 }
 
-func (c *syncmap_collector) Update(key string, doc []byte) {
+func (c *syncmap_collector) Update(doc Document) {
   c.Lock()
   defer c.Unlock()
   c.collection[key] = bytes.ToLower(doc)
