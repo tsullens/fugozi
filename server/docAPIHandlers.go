@@ -6,7 +6,7 @@ import (
   "regexp"
   "fmt"
   "time"
-  "gocached/database"
+  "go-cached/database"
   "encoding/json"
 )
 
@@ -41,27 +41,19 @@ func docGetHandler(w http.ResponseWriter, r *http.Request, bucketId, docId strin
   defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
   doc, err := DocumentDatabase.Select(bucketId, docId)
-  // if doc is nil, either the bucket doesn't exist,
-  // or the docId doesn't exist... either way just return a 404
   if err != nil {
-    http.Error(w, err.Error(), http.StatusInternalServerError)
-  } else {
-    // else let's write our doc content to the response
-    w.Header().Set("Content-Type", "application")
-    w.Write(doc)
+    http.Error(w, err.Error(), http.StatusNotFound)
+    return
   }
+  // else let's write our doc content to the response
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(doc)
 }
 
 // if /$bucket exists, insert / update the doc
-func docPostHandler(w http.ResponseWriter, r *http.Request, bucketId) {
+func docPostHandler(w http.ResponseWriter, r *http.Request, bucketId string) {
   defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
-  var data database.DocumentData
-
-  if (Config.Debug) {
-    lgmsg := fmt.Sprintf("%v", r.ContentLength)
-    Logger.Write(lgmsg)
-  }
   if r.ContentLength < 1 {
     http.Error(w, "Request content length 0 or undeterminable", http.StatusBadRequest)
   }
@@ -71,18 +63,16 @@ func docPostHandler(w http.ResponseWriter, r *http.Request, bucketId) {
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
   }
-  err = json.Unmarshal(buf, &data)
+  doc, err := database.NewDocument(buf)
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
   }
-  var doc = Document{
-    timestamp: time.Now(),
-    data: data,
-  }
   if err := DocumentDatabase.Update(bucketId, doc); err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
+    return
   }
+  return
 }
 
 /*

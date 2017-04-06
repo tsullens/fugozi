@@ -2,22 +2,41 @@ package database
 
 import (
   "sync"
-  "bytes"
   "time"
+  "encoding/json"
+  "bytes"
 )
 /*
-type document struct {
+type Document struct {
   timestamp time.Time
   data []byte
 }
 */
-//type document []byte
+//type Document []byte
 
-type DocumentData map[string]{}interface
+type documentData map[string]interface{}
 
 type Document struct {
-  timestamp time.Time
-  data DocumentData
+  Timestamp time.Time
+  Data documentData
+}
+
+func NewDocument(docData []byte) (*Document, error) {
+  var data documentData
+  err := json.Unmarshal(bytes.ToLower(docData), &data)
+  if err != nil {
+    return nil, err
+  }
+  return &Document{
+    Timestamp: time.Now(),
+    Data: data,
+  }, nil
+}
+
+type collector interface {
+  Get(string) *Document
+  Update(string, *Document)
+  Delete(string)
 }
 
 type BucketMetaData struct {
@@ -37,7 +56,7 @@ func (bmd *BucketMetaData) updateDocCount(n int) {
 
 type Bucket struct {
   *BucketMetaData
-  collector
+  store collector
 }
 
 func (bmd *BucketMetaData) GetMetaData() (BucketMetaData) {
@@ -51,48 +70,31 @@ func NewBucket(b BucketMetaData) (*Bucket, error) {
   case "syncmap":
     return &Bucket{
       BucketMetaData: &b,
-      collector: NewSyncMapCollector(),
+      store: NewSyncMapCollector(),
     }, nil
   default:
     return nil, &BucketEngineError{engineName: b.Engine}
   }
 }
 
-type collector interface {
-  Get(string) document
-  Update(string, []byte)
-  Delete(string)
+func (b *Bucket) Get(docId string) (*Document) {
+  return b.store.Get(docId)
 }
 
-type syncmap_collector struct {
-  sync.RWMutex
-  collection map[string]document
-}
-
-func NewSyncMapCollector() (*syncmap_collector) {
-  return &syncmap_collector{
-    collection: make(map[string]document),
-  }
-}
-
-func (c *syncmap_collector) Get(key string) (document) {
-  c.RLock()
-  defer c.RUnlock()
-  if doc, exists := c.collection[key]; exists {
-    return doc
+func (b *Bucket) Update(doc *Document) (error) {
+  bmd := b.GetMetaData()
+  if v, exists := doc.Data[bmd.PrimaryKey]; exists {
+    docId, ok := v.(string)
+    if !ok {
+      return &PrimaryKeyTypeValueMismatchError{doc: doc}
+    }
+    b.store.Update(docId, doc)
+  } else {
+    return &PrimaryKeyNotFoundError{pKey: bmd.PrimaryKey, doc: doc}
   }
   return nil
 }
 
-func (c *syncmap_collector) Update(doc Document) {
-  c.Lock()
-  defer c.Unlock()
-  c.collection[key] = bytes.ToLower(doc)
-  return
-}
-
-func (c *syncmap_collector) Delete(key string) {
-  c.Lock()
-  defer c.Unlock()
-  delete(c.collection, key)
+func (b *Bucket) Delete(key string) {
+  b.store.Delete(key)
 }

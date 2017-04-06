@@ -49,7 +49,6 @@ func (db *Database) AddBucket(b BucketMetaData) (error) {
   db.log.Write(fmt.Sprintf("Adding bucket: %s", b.BucketId))
   // Create bucket
   var logMsg string
-  defer db.transactionLog(logMsg, time.Now())
   db.Lock()
   defer db.Unlock()
   _, exists := db.buckets[b.BucketId]
@@ -65,6 +64,7 @@ func (db *Database) AddBucket(b BucketMetaData) (error) {
   }
   db.buckets[b.BucketId] = bucket
   logMsg = fmt.Sprintf("Add Bucket %s completed", b.BucketId)
+  db.transactionLog(logMsg, time.Now())
   return nil
 }
 
@@ -83,9 +83,8 @@ func (db *Database) DeleteBucket(bucketId string) (error) {
 }
 
 // Document-level Functions
-func (db *Database) Select(bucketId string, docId string) ([]byte, error) {
+func (db *Database) Select(bucketId string, docId string) (*Document, error) {
   var msg string
-  defer db.transactionLog(msg, time.Now())
 
   db.RLock()
   bucket, exists := db.buckets[bucketId]
@@ -97,33 +96,39 @@ func (db *Database) Select(bucketId string, docId string) ([]byte, error) {
     doc := bucket.Get(docId)
     bucketTransactionTime := time.Since(bucketTransactionStart)
     if doc != nil {
-      msg = fmt.Sprintf("%s SELECT %s %s", bucketId, docId, bucketTransactionTime)
+      msg = fmt.Sprintf("%s SELECT %s: %+v %s", bucketId, docId, doc, bucketTransactionTime)
     } else {
       msg = fmt.Sprintf("%s SELECT MISS %s %s", bucketId, docId, bucketTransactionTime)
     }
+    db.transactionLog(msg, time.Now())
     return doc, nil
   }
 }
 
-func (db *Database) Update(bucketId string, doc Document) (error) {
+func (db *Database) Update(bucketId string, doc *Document) (error) {
   var (
     bucket *Bucket
     exists bool
     msg string
   )
-  defer db.transactionLog(msg, time.Now())
+
   db.RLock()
   bucket, exists = db.buckets[bucketId]
   db.RUnlock()
   if !exists {
     return &BucketNotFoundError{bucketId: bucketId}
-  } else {
-    bucketTransactionStart := time.Now()
-    bucket.Update(doc)
-    bucketTransactionTime := time.Since(bucketTransactionStart)
-    msg = fmt.Sprintf("%s INSERT %s %s", bucketId, docId, bucketTransactionTime)
-    return nil
   }
+  bucketTransactionStart := time.Now()
+  err := bucket.Update(doc)
+  bucketTransactionTime := time.Since(bucketTransactionStart)
+  if err != nil {
+    msg = fmt.Sprintf("%s INSERT failed: ERROR: %s %s", bucketId, err.Error(), bucketTransactionTime)
+    return err
+  }
+
+  msg = fmt.Sprintf("%s INSERT %+v %s", bucketId, doc, bucketTransactionTime)
+  db.transactionLog(msg, time.Now())
+  return nil
 }
 
 
@@ -143,7 +148,6 @@ func (db *Database) Delete(bucketId, docId string) (error) {
     msg = fmt.Sprintf("%s DELETE %s %s", bucketId, docId, bucketTransactionTime)
     return nil
   }
-
 }
 
 /*

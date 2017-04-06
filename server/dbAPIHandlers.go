@@ -41,8 +41,8 @@ func dbBucketAPIHandler(w http.ResponseWriter, r *http.Request) {
   }
   // Edge cases here: GET or DELETE with no bucketId in uri (len(matches) == 2), ??
   switch r.Method {
-  case "POST":
-    bucketPostHandler(w, r)
+  case "PUT":
+    bucketPutHandler(w, r)
   case "DELETE":
     bucketDeleteHandler(w, r, matches[1])
   case "GET":
@@ -60,11 +60,11 @@ func bucketStatsHandler(w http.ResponseWriter, r *http.Request, bucketId string)
     http.Error(w, err.Error(), http.StatusInternalServerError) // should we return a 404? idk
     return
   }
-  enc := json.NewEncoder(w)
-  enc.Encode(bmd)
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(bmd)
 }
 
-func bucketPostHandler(w http.ResponseWriter, r *http.Request) {
+func bucketPutHandler(w http.ResponseWriter, r *http.Request) {
   defer RequestLog(fmt.Sprintf("%s %s %s %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr), time.Now())
 
   var bmd database.BucketMetaData
