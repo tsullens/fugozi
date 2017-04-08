@@ -16,7 +16,7 @@ import (
 //      IF bucket does not already exist.
 // ???
 // GET /db/stats -> print each bucket from the database in json
-// GET /db/stats/bucket -> bucket - specific stats??
+// GET /db/stats/$bucket_name -> bucket - specific stats??
 // GET /db/info | GET /db/info/$bucket_name | GET /db/info(?bucket=$bucket_name)
 // ???
 

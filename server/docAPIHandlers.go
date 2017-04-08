@@ -21,6 +21,7 @@ func docAPIHandler(w http.ResponseWriter, r *http.Request) {
 
   if len(matches) < 2 {
     http.NotFound(w, r)
+    return
   }
   switch r.Method {
   case "GET":
